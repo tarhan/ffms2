@@ -18,69 +18,154 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //  THE SOFTWARE.
 
-#include <string>
 #include "ffms.h"
+
 #include "avssources.h"
-#include "ffswscale.h"
 #include "avsutils.h"
+#include "ffswscale.h"
 
-static AVSValue __cdecl CreateFFIndex(AVSValue Args, void* UserData, IScriptEnvironment* Env) {
-	if (!Args[0].Defined())
-		Env->ThrowError("FFIndex: No source specified");
+#include <string>
 
-	FFMS_Init(0, Args[7].AsBool(false));
+struct ArgStringBuilder {
+	std::string str;
 
-	const char *Source = Args[0].AsString();
-	const char *CacheFile = Args[1].AsString("");
-	int IndexMask = Args[2].AsInt(-1);
-	int DumpMask = Args[3].AsInt(0);
-	const char *AudioFile = Args[4].AsString("%sourcefile%.%trackzn%.w64");
-	int ErrorHandling = Args[5].AsInt(FFMS_IEH_IGNORE);
-	bool OverWrite = Args[6].AsBool(false);
-	const char *DemuxerStr = Args[8].AsString("default");
+	void append(const char *name) {
+		str += '[';
+		str += name;
+		str += ']';
+	}
 
-	std::string DefaultCache(Source);
-	DefaultCache.append(".ffindex");
-	if (!strcmp(CacheFile, ""))
-		CacheFile = DefaultCache.c_str();
+	template<typename T>
+	void operator()(int (T::*), const char *name, int) {
+		append(name);
+		str += 'i';
+	}
 
-	if (!strcmp(AudioFile, ""))
-		Env->ThrowError("FFIndex: Specifying an empty audio filename is not allowed");
+	template<typename T>
+	void operator()(const char *(T::*), const char *name, const char *) {
+		append(name);
+		str += 's';
+	}
 
-	int Demuxer;
-	if (!strcmp(DemuxerStr, "default"))
-		Demuxer = FFMS_SOURCE_DEFAULT;
-	else if (!strcmp(DemuxerStr, "lavf"))
-		Demuxer = FFMS_SOURCE_LAVF;
-	else if (!strcmp(DemuxerStr, "matroska"))
-		Demuxer = FFMS_SOURCE_MATROSKA;
-	else if (!strcmp(DemuxerStr, "haalimpeg"))
-		Demuxer = FFMS_SOURCE_HAALIMPEG;
-	else if (!strcmp(DemuxerStr, "haaliogg"))
-		Demuxer = FFMS_SOURCE_HAALIOGG;
-	else
-		Env->ThrowError("FFIndex: Invalid demuxer requested");
+	template<typename T>
+	void operator()(bool (T::*), const char *name, bool) {
+		append(name);
+		str += 's';
+	}
+};
 
-	ErrorInfo E;
-	FFMS_Index *Index = FFMS_ReadIndex(CacheFile, &E);
-	if (OverWrite || !Index || (Index && FFMS_IndexBelongsToFile(Index, Source, 0) != FFMS_ERROR_SUCCESS)) {
-		FFMS_Indexer *Indexer = FFMS_CreateIndexerWithDemuxer(Source, Demuxer, &E);
-		if (!Indexer)
-			Env->ThrowError("FFIndex: %s", E.Buffer);
-		if (!(Index = FFMS_DoIndexing(Indexer, IndexMask, DumpMask, FFMS_DefaultAudioFilename, (void *)AudioFile, ErrorHandling, NULL, NULL, &E)))
-			Env->ThrowError("FFIndex: %s", E.Buffer);
-		if (FFMS_WriteIndex(CacheFile, Index, &E)) {
-			FFMS_DestroyIndex(Index);
-			Env->ThrowError("FFIndex: %s", E.Buffer);
-		}
-		FFMS_DestroyIndex(Index);
-		if (!OverWrite)
-			return AVSValue(1);
+template<typename T>
+void Register(IScriptEnvironment *Env, const char *name) {
+	ArgStringBuild arg;
+	T::ArgInfo(arg);
+	Env->AddFunction(name, arg.str.c_str(), T::Invoke, NULL);
+}
+
+template<typename T>
+struct Deserializer {
+	T &obj;
+	AVSValue &Args;
+	int Index;
+
+	Deserializer(T *obj, AVSValue &Args) : obj(obj), Args(Args), Index(0) { }
+
+	void operator()(int (T::*field), const char *name, int def) {
+		obj.*field = Args[Index++].AsInt(def);
+	}
+
+	void operator()(const char *(T::*field), const char *name, const char *def) {
+		obj.*field = Args[Index++].AsString(def);
+	}
+
+	void operator()(bool (T::*field), const char *name, bool def) {
+		obj.*field = Args[Index++].AsBool(def);
+	}
+}
+
+template<typename T>
+T Deserialize(AVSValue &Args) {
+	T obj;
+	Deserializer<T> deserializer(obj, Args);
+	T::ArgInfo(deserializer);
+	return pbj;
+}
+
+struct CreateFFIndex {
+	const char *Source;
+	const char *CacheFile;
+	int IndexMask;
+	int DumpMask;
+	const char *AudioFile;
+	int ErrorHandling;
+	bool OverWrite;
+	bool Utf8;
+	const char *DemuxerStr;
+
+	template<typename Func>
+	static void ArgInfo(Func& f) {
+		f(&CreateFFIndex::Source, "source", NULL);
+		f(&CreateFFIndex::CacheFile, "cachefile", "");
+		f(&CreateFFIndex::IndexMask, "indexmask", -1);
+		f(&CreateFFIndex::DumpMask, "dumpmask", 0);
+		f(&CreateFFIndex::AudioFile, "audiofile", "%sourcefile%.%trackzn%.w64");
+		f(&CreateFFIndex::ErrorHandling, "errorhandling", FFMS_IEH_IGNORE);
+		f(&CreateFFIndex::OverWrite, "overwrite", false);
+		f(&CreateFFIndex::Utf8, "utf8", false);
+		f(&CreateFFIndex::DemuxerStr, "demuxer", "default");
+	}
+
+	static AVSValue __cdecl Invoke(AVSValue Args, void *UserData, IScriptEnvironment *Env) {
+		if (!Args[0].Defined())
+			Env->ThrowError("FFIndex: No source specified");
+		return Deserilaize<CreateFFIndex>(Args)(Env);
+	}
+
+	AVSValue operator()(IScriptEnvironment *Env) {
+		FFMS_Init(0, Utf8);
+
+		std::string DefaultCache(Source);
+		DefaultCache.append(".ffindex");
+		if (!strcmp(CacheFile, ""))
+			CacheFile = DefaultCache.c_str();
+
+		if (!strcmp(AudioFile, ""))
+			Env->ThrowError("FFIndex: Specifying an empty audio filename is not allowed");
+
+		int Demuxer;
+		if (!strcmp(DemuxerStr, "default"))
+			Demuxer = FFMS_SOURCE_DEFAULT;
+		else if (!strcmp(DemuxerStr, "lavf"))
+			Demuxer = FFMS_SOURCE_LAVF;
+		else if (!strcmp(DemuxerStr, "matroska"))
+			Demuxer = FFMS_SOURCE_MATROSKA;
+		else if (!strcmp(DemuxerStr, "haalimpeg"))
+			Demuxer = FFMS_SOURCE_HAALIMPEG;
+		else if (!strcmp(DemuxerStr, "haaliogg"))
+			Demuxer = FFMS_SOURCE_HAALIOGG;
 		else
-			return AVSValue(2);
-	} else {
-		FFMS_DestroyIndex(Index);
-		return AVSValue(0);
+			Env->ThrowError("FFIndex: Invalid demuxer requested");
+
+		ErrorInfo E;
+		FFMS_Index *Index = FFMS_ReadIndex(CacheFile, &E);
+		if (OverWrite || !Index || (Index && FFMS_IndexBelongsToFile(Index, Source, 0) != FFMS_ERROR_SUCCESS)) {
+			FFMS_Indexer *Indexer = FFMS_CreateIndexerWithDemuxer(Source, Demuxer, &E);
+			if (!Indexer)
+				Env->ThrowError("FFIndex: %s", E.Buffer);
+			if (!(Index = FFMS_DoIndexing(Indexer, IndexMask, DumpMask, FFMS_DefaultAudioFilename, (void *)AudioFile, ErrorHandling, NULL, NULL, &E)))
+				Env->ThrowError("FFIndex: %s", E.Buffer);
+			if (FFMS_WriteIndex(CacheFile, Index, &E)) {
+				FFMS_DestroyIndex(Index);
+				Env->ThrowError("FFIndex: %s", E.Buffer);
+			}
+			FFMS_DestroyIndex(Index);
+			if (!OverWrite)
+				return AVSValue(1);
+			else
+				return AVSValue(2);
+		} else {
+			FFMS_DestroyIndex(Index);
+			return AVSValue(0);
+		}
 	}
 }
 
@@ -295,7 +380,7 @@ static AVSValue __cdecl FFGetVersion(AVSValue Args, void* UserData, IScriptEnvir
 }
 
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit2(IScriptEnvironment* Env) {
-	Env->AddFunction("FFIndex", "[source]s[cachefile]s[indexmask]i[dumpmask]i[audiofile]s[errorhandling]i[overwrite]b[utf8]b[demuxer]s", CreateFFIndex, 0);
+	Register<CreateFFIndex>(Env, "FFIndex");
 	Env->AddFunction("FFVideoSource", "[source]s[track]i[cache]b[cachefile]s[fpsnum]i[fpsden]i[threads]i[timecodes]s[seekmode]i[rffmode]i[width]i[height]i[resizer]s[colorspace]s[utf8]b[varprefix]s", CreateFFVideoSource, 0);
 	Env->AddFunction("FFAudioSource", "[source]s[track]i[cache]b[cachefile]s[adjustdelay]i[utf8]b[varprefix]s", CreateFFAudioSource, 0);
 	Env->AddFunction("SWScale", "c[width]i[height]i[resizer]s[colorspace]s", CreateSWScale, 0);
