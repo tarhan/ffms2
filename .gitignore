@@ -54,3 +54,6 @@
 /test/.libs
 /test/*.o
 /test/indexer
+
+.vscode/
+build-msvc/.vs/
