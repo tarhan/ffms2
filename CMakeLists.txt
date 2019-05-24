@@ -10,6 +10,7 @@ project(ffms2
 
 option(ENABLE_DEBUG "Enable debug build. [default=NO]" NO)
 option(ENABLE_TEST "Enable build test. [default=NO]" NO)
+option(ENABLE_APP "Enable ffmsindex building. [default=YES]" YES)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
@@ -24,7 +25,7 @@ include(Makefile.am.cmake)
 
 # AC_CONFIG_MACRO_DIR([m4])
 # ZLIB library defined by find_package(ZLIB) and imported ZLIB::ZLIB
-find_package(ZLIB)
+find_package(ZLIB REQUIRED)
 
 # AM_INIT_AUTOMAKE([1.11 subdir-objects])
 # https://www.gnu.org/software/automake/manual/html_node/Public-Macros.html
@@ -50,15 +51,16 @@ message(STATUS "Checking if debug build is enabled... ${ENABLE_DEBUG}")
 # else
 #     OPT_FLAGS="-O3"
 # fi
-if (ENABLE_DEBUG)
-    target_compile_options(ffms2
-        PRIVATE "-O0 -g"
-    )
-else()
-    target_compile_options(ffms2
-        PRIVATE "-O3"
-    )
-endif()
+# In reality CMake create compile definitions based on CMAKE_BUILD_TYPE
+# if (ENABLE_DEBUG)
+#     target_compile_options(ffms2
+#         PRIVATE "-O0 -g"
+#     )
+# else()
+#     target_compile_options(ffms2
+#         PRIVATE "-O3"
+#     )
+# endif()
 
 if(NOT MSVC)
     if(NOT DEFINED $ENV{CFLAGS})
@@ -76,6 +78,8 @@ endif()
 # fi
 
 # AC_CONFIG_HEADERS([src/config/config.h])
+# https://www.gnu.org/software/autoconf/manual/autoconf-2.64/html_node/Configuration-Headers.html
+
 # AC_PROG_CC
 # AC_PROG_CXX
 
@@ -83,6 +87,7 @@ endif()
 # CMake alternative is here: https://stackoverflow.com/questions/35765106/symbolic-links-cmake
 
 # AC_PROG_MKDIR_P
+# Default action with cmake -E make_directory
 
 # AC_CANONICAL_HOST
 # AS_CASE([$host],
@@ -199,6 +204,12 @@ target_link_libraries(ffms2
 # AC_OUTPUT
 
 add_subdirectory(src)
+# ffmsindex
+if (ENABLE_APP)
+    add_subdirectory(src/index)
+endif()
+
 if (ENABLE_TEST)
     add_subdirectory(test)
 endif()
+
