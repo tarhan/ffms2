@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.1)
 # AC_INIT([ffms2],[esyscmd([sh version.sh])])
 project(ffms2
     VERSION 2.31.0.0
-    HOMEPAGE_URL "https://github.com/FFMS/ffms2"
+    # HOMEPAGE_URL "https://github.com/FFMS/ffms2"
     LANGUAGES CXX
 )
 
@@ -14,14 +14,9 @@ option(ENABLE_APP "Enable ffmsindex building. [default=YES]" YES)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-add_library(ffms2 "")
-
 # AC_CONFIG_SRCDIR([src/core/ffms.cpp])
-target_sources(ffms2
-    PRIVATE src/core/ffms.cpp
-)
 
-include(Makefile.am.cmake)
+# include(Makefile.am.cmake)
 
 # AC_CONFIG_MACRO_DIR([m4])
 # ZLIB library defined by find_package(ZLIB) and imported ZLIB::ZLIB
@@ -64,9 +59,7 @@ message(STATUS "Checking if debug build is enabled... ${ENABLE_DEBUG}")
 
 if(NOT MSVC)
     if(NOT DEFINED $ENV{CFLAGS})
-        target_compile_options(ffms2
-            PRIVATE "-Wall" "-Wextra"
-        )
+        set(EXTRA_WARNINGS "-Wall" "-Wextra")
     endif()
 endif()
 # if test -z "$CFLAGS"; then
@@ -97,6 +90,9 @@ endif()
 #          ], [
 #             AC_ENABLE_SHARED
 #             AC_DISABLE_STATIC])
+if(MINGW OR CYGWIN)
+    set(BUILD_SHARED_LIBS OFF)
+endif()
 
 # AC_PROG_LIBTOOL
 
@@ -136,9 +132,8 @@ endif()
 
 # AC_SUBST([FFMPEG_CFLAGS])
 # AC_SUBST([FFMPEG_LIBS])
-find_package(FFMPEG)
-target_link_libraries(ffms2
-    PRIVATE FFMPEG::FFMPEG
+find_package(FFMPEG
+    REQUIRED COMPONENTS avutil avformat avcodec swscale swresample
 )
 
 # CPPFLAGS="$CPPFLAGS -D__STDC_CONSTANT_MACROS"
@@ -203,13 +198,15 @@ target_link_libraries(ffms2
 # ])
 # AC_OUTPUT
 
-add_subdirectory(src)
-# ffmsindex
-if (ENABLE_APP)
-    add_subdirectory(src/index)
-endif()
+include(Makefile.am.cmake)
 
-if (ENABLE_TEST)
-    add_subdirectory(test)
-endif()
+# add_subdirectory(src)
+# # ffmsindex
+# if (ENABLE_APP)
+#     add_subdirectory(src/index)
+# endif()
+
+# if (ENABLE_TEST)
+#     add_subdirectory(test)
+# endif()
 

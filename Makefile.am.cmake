@@ -6,12 +6,18 @@
 
 # dist_doc_DATA = doc/ffms2-api.md doc/ffms2-changelog.md
 
+add_library(ffms2 "")
+
+target_compile_options(ffms2
+    PRIVATE ${EXTRA_WARNINGS}
+)
+
 # AM_CPPFLAGS = \
 # 	-I. \
 # 	-I$(top_srcdir)/include \
 # 	-I$(top_srcdir)/src/config \
 target_include_directories(ffms2
-    PRIVATE 
+    PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
     PUBLIC
         ${CMAKE_SOURCE_DIR}/include
@@ -27,6 +33,12 @@ target_compile_definitions(ffms2
         "FFMS_EXPORTS"
         "__STDC_CONSTANT_MACROS"
 )
+
+target_link_libraries(ffms2
+    PRIVATE
+        ZLIB::ZLIB
+        FFMPEG::FFMPEG
+)
 # 	@FFMPEG_CFLAGS@ \
 # For cmake CFLAGS getting via transietive dependecy from FFMPEG::FFMPEG target
 # 	@ZLIB_CPPFLAGS@ \
@@ -36,10 +48,10 @@ target_compile_definitions(ffms2
 # AM_CXXFLAGS = -std=c++11 -fvisibility=hidden
 # Makefile.am line 19
 set_target_properties(ffms2
-    PROPERTIES 
+    PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED YES
-        CXX_VISIBILITY_PRESET hidden
+        # CXX_VISIBILITY_PRESET hidden
 )
 
 # lib_LTLIBRARIES = src/core/libffms2.la
@@ -67,12 +79,65 @@ set_target_properties(ffms2
 # 	src/vapoursynth/vapoursource.cpp \
 # 	src/vapoursynth/vapoursource.h \
 # 	src/vapoursynth/vapoursynth.cpp
+set(LIB_SOURCES
+    src/core/audiosource.cpp
+    src/core/audiosource.h
+    src/core/ffms.cpp
+    src/core/filehandle.cpp
+    src/core/filehandle.h
+    src/core/indexing.cpp
+    src/core/indexing.h
+    src/core/track.cpp
+    src/core/track.h
+    src/core/utils.cpp
+    src/core/utils.h
+    src/core/videosource.cpp
+    src/core/videosource.h
+    src/core/videoutils.cpp
+    src/core/videoutils.h
+    src/core/zipfile.cpp
+    src/core/zipfile.h
+    src/vapoursynth/VapourSynth.h
+    src/vapoursynth/vapoursource.cpp
+    src/vapoursynth/vapoursource.h
+    src/vapoursynth/vapoursynth.cpp
+)
+
+target_sources(ffms2
+    PRIVATE
+        ${LIB_SOURCES}
+        ${LIB_HEADERS}
+)
 
 # include_HEADERS = $(top_srcdir)/include/ffms.h $(top_srcdir)/include/ffmscompat.h
+set(LIB_HEADERS
+    include/ffms.h
+    include/ffmscompat.h
+)
+
 
 # bin_PROGRAMS = src/index/ffmsindex
+add_executable(ffmsindex "")
+
 # src_index_ffmsindex_SOURCES = src/index/ffmsindex.cpp
+set(APP_SOURCES
+    src/index/ffmsindex.cpp
+)
+target_sources(ffmsindex
+    PRIVATE
+        ${APP_SOURCES}
+)
+
 # src_index_ffmsindex_LDADD = src/core/libffms2.la
+target_link_libraries(ffmsindex
+    PRIVATE ffms2
+)
+
+
+
+
+
+
 
 # .PHONY: test test-build test-clean test-sync test-run
 # clean-local: test-clean
