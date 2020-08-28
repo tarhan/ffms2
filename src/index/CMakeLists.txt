@@ -10,7 +10,7 @@ target_sources(ffmsindex
 
 target_link_libraries(ffmsindex
     PRIVATE 
-        ffms2
+        ffms2::ffms2
 )
 
 set_target_properties(ffmsindex

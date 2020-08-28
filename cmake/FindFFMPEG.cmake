@@ -109,16 +109,6 @@ if (FFMPEG_FOUND)
                 INTERFACE FFMPEG::${icomp}
             )
         endforeach()
-        # TODO Research correct way (include all ffmpeg components)
-        install(
-            TARGETS FFMPEG_FFMPEG
-            EXPORT ffmpegTargets    
-        )
-        install(EXPORT ffmpegTargets
-            FILE ffmpegTargets.cmake
-            NAMESPACE FFMPEG::
-            DESTINATION lib/cmake/FFMPEG
-        )
     endif()
 endif()
 
