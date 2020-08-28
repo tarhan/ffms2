@@ -1,18 +1,17 @@
 cmake_minimum_required(VERSION 3.1)
 
 project(ffms2
-    VERSION 2.31.0.0
+    VERSION 2.40.0.0
     LANGUAGES CXX
 )
 set(BUILD_SHARED_LIBS ON)
 
 set(ffms2_URL "https://github.com/FFMS/ffms2")
-# TODO Check if it needed within CMake
-set(VERSION_INFO "4.0.0")
 
 option(ENABLE_DEBUG "Enable debug build. [default=NO]" NO)
 option(ENABLE_TEST "Enable build test. [default=NO]" NO)
 option(ENABLE_APP "Enable ffmsindex building. [default=YES]" YES)
+option(ENABLE_AVISYNTH "Enable AviSynth+ plugin. [default=NO]" NO)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
@@ -40,7 +39,7 @@ if(MINGW OR CYGWIN)
 endif()
 
 if(CYGWIN AND BUILD_SHARED_LIBS)
-    message(FATAL_ERROR "Shared build is broken on cygwin. Please set BUILD_SHARED_LIBS to OFF")
+    message(FATAL_ERROR "Shared build is broken on cygwin. Please set CMake BUILD_SHARED_LIBS variable to OFF")
 endif()
 
 add_library(ffms2 "")
@@ -125,7 +124,7 @@ endif()
 
 add_subdirectory(src/core)
 add_subdirectory(src/vapoursynth)
-if(WIN32)
+if(ENABLE_AVISYNTH)
     add_subdirectory(src/avisynth)
 endif()
 

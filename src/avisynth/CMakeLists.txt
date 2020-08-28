@@ -12,3 +12,8 @@ target_sources(ffms2
     PRIVATE
         ${LIB_SOURCES}
 )
+
+target_include_directories(ffms2
+    PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}
+)
