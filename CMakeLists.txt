@@ -45,6 +45,10 @@ endif()
 add_library(ffms2 "")
 add_library(ffms2::ffms2 ALIAS ffms2)
 
+if(WIN32)
+    set_target_properties(ffms2 PROPERTIES DEBUG_POSTFIX d)
+endif()
+
 set_target_properties(ffms2
     PROPERTIES
         CXX_STANDARD 11
